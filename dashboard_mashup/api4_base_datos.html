@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API 4 - Base de Datos</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #0a0a0a; color: #00d4ff; min-height: 100vh; padding: 20px; }
+    h1 { font-size: 1.4rem; margin-bottom: 12px; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #00d4ff44; padding-bottom: 8px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 0.78rem; color: #00d4ff88; margin-bottom: 4px; letter-spacing: 1px; }
+    input { background: transparent; border: 1px solid #00d4ff44; color: #00d4ff; padding: 8px 12px; font-family: inherit; font-size: 0.85rem; width: 100%; max-width: 340px; }
+    input::placeholder { color: #00d4ff44; }
+    button { background: transparent; border: 1px solid #00d4ff; color: #00d4ff; padding: 8px 20px; cursor: pointer; font-family: inherit; font-size: 0.85rem; letter-spacing: 1px; transition: all 0.2s; margin-right: 8px; margin-top: 4px; }
+    button:hover { background: #00d4ff22; }
+    #log { margin-top: 16px; border: 1px solid #00d4ff22; padding: 12px; border-radius: 4px; max-height: 220px; overflow-y: auto; }
+    .log-entry { font-size: 0.78rem; padding: 6px 0; border-bottom: 1px solid #00d4ff11; line-height: 1.4; }
+    .log-entry.success { color: #00ff88; }
+    .log-entry.error { color: #ff6b6b; }
+    .log-entry.info { color: #00d4ff88; }
+    .records-list { margin-top: 16px; }
+    .record { border: 1px solid #00d4ff22; padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; }
+    .record-name { font-weight: bold; }
+    .record-meta { color: #00d4ff66; font-size: 0.72rem; }
+    .badge { background: #00d4ff22; padding: 2px 8px; font-size: 0.7rem; border-radius: 2px; }
+    pre { font-size: 0.72rem; color: #00d4ff88; margin-top: 4px; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>🗄️ API 4 — Base de Datos</h1>
+  <p style="font-size:0.78rem; color:#00d4ff66; margin-bottom:16px;">Registro en la nube usando JSONBin.io + localStorage como respaldo local</p>
+
+  <div class="form-group">
+    <label>NOMBRE DE USUARIO</label>
+    <input id="username" type="text" placeholder="Ej: Juan Pérez" maxlength="50">
+  </div>
+  <div class="form-group">
+    <label>EMAIL</label>
+    <input id="email" type="email" placeholder="usuario@ejemplo.com" maxlength="80">
+  </div>
+  <div class="form-group">
+    <label>CARRERA / ROL</label>
+    <input id="role" type="text" placeholder="Ej: Ing. en Sistemas" maxlength="60">
+  </div>
+
+  <button onclick="registerUser()">💾 Registrar en la Nube</button>
+  <button onclick="loadRecords()">📋 Ver Registros</button>
+  <button onclick="clearLog()">🗑️ Limpiar Log</button>
+
+  <div id="log"></div>
+  <div class="records-list" id="recordsList"></div>
+
+  <script>
+    // Uses localStorage as cloud-like DB simulation + JSONBin for real API demo
+    const DB_KEY = 'api4_users_db';
+    const BIN_API = 'https://api.jsonbin.io/v3/b';
+    // Public demo bin - using POST to create entries
+    const MASTER_KEY = '$2a$10$demo_key_placeholder'; // Demo key for UI purposes
+
+    function log(msg, type = 'info') {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.prepend(entry);
+    }
+
+    function getLocalDB() {
+      try { return JSON.parse(localStorage.getItem(DB_KEY)) || []; } catch { return []; }
+    }
+
+    function saveLocalDB(data) {
+      localStorage.setItem(DB_KEY, JSON.stringify(data));
+    }
+
+    async function registerUser() {
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const role = document.getElementById('role').value.trim();
+
+      if (!username || !email) { log('⚠️ Nombre y email son requeridos', 'error'); return; }
+
+      log(`Iniciando registro para: ${username}...`);
+
+      const record = {
+        id: Date.now(),
+        username,
+        email,
+        role: role || 'Sin especificar',
+        timestamp: new Date().toISOString(),
+        ip: '192.168.x.x' // simulated
+      };
+
+      // Save locally (as DB simulation)
+      const db = getLocalDB();
+      db.push(record);
+      saveLocalDB(db);
+      log(`✅ Guardado en base de datos local (localStorage): ID #${record.id}`, 'success');
+
+      // Try JSONBin.io real API call
+      try {
+        log('Enviando a JSONBin.io (base de datos en la nube)...');
+        const res = await fetch('https://api.jsonbin.io/v3/b', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Bin-Name': `User_${username}`
+          },
+          body: JSON.stringify(record)
+        });
+        const data = await res.json();
+        if (data.metadata) {
+          log(`✅ Registro enviado a JSONBin.io — BIN ID: ${data.metadata.id}`, 'success');
+          log(`🌐 URL: https://api.jsonbin.io/v3/b/${data.metadata.id}`, 'info');
+        } else {
+          log('📦 JSONBin respondió (sin bin_id en demo). Datos guardados localmente.', 'info');
+        }
+      } catch(e) {
+        log(`📦 API cloud no disponible. Datos respaldados en localStorage. (${e.message})`, 'info');
+      }
+
+      // Show JSON response
+      log(`📄 Payload enviado: ${JSON.stringify(record, null, 0)}`, 'info');
+
+      // Clear form
+      document.getElementById('username').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('role').value = '';
+
+      loadRecords();
+    }
+
+    function loadRecords() {
+      const db = getLocalDB();
+      const list = document.getElementById('recordsList');
+      if (!db.length) {
+        list.innerHTML = '<div style="color:#00d4ff44; font-size:0.8rem; margin-top:8px;">No hay registros aún.</div>';
+        return;
+      }
+      list.innerHTML = `<div style="font-size:0.8rem; margin-bottom:8px; color:#00d4ff88;">📋 ${db.length} registro(s) en la base de datos:</div>` +
+        db.slice().reverse().map(r => `
+          <div class="record">
+            <div>
+              <div class="record-name">👤 ${r.username}</div>
+              <div class="record-meta">📧 ${r.email} &nbsp;|&nbsp; 🎓 ${r.role}</div>
+              <div class="record-meta">🕐 ${new Date(r.timestamp).toLocaleString()}</div>
+            </div>
+            <span class="badge">ID #${r.id.toString().slice(-4)}</span>
+          </div>
+        `).join('');
+      log(`📋 ${db.length} registro(s) cargados de la base de datos`, 'info');
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    log('Sistema de base de datos inicializado. Usando localStorage + JSONBin.io API', 'success');
+    loadRecords();
+  </script>
+</body>
+</html>

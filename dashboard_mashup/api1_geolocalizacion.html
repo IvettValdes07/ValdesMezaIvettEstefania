@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API 1 - Geolocalización</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #0a0a0a; color: #00ff88; min-height: 100vh; padding: 20px; }
+    h1 { font-size: 1.4rem; margin-bottom: 12px; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #00ff8844; padding-bottom: 8px; }
+    #map { width: 100%; height: 350px; border: 1px solid #00ff8844; border-radius: 4px; }
+    .controls { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    button { background: transparent; border: 1px solid #00ff88; color: #00ff88; padding: 8px 16px; cursor: pointer; font-family: inherit; font-size: 0.85rem; letter-spacing: 1px; transition: all 0.2s; }
+    button:hover { background: #00ff8822; }
+    input { background: transparent; border: 1px solid #00ff8844; color: #00ff88; padding: 8px 12px; font-family: inherit; font-size: 0.85rem; width: 180px; }
+    input::placeholder { color: #00ff8866; }
+    #info { margin-top: 12px; font-size: 0.8rem; color: #00ff8899; line-height: 1.6; }
+    .badge { display: inline-block; background: #00ff8822; border: 1px solid #00ff8844; padding: 2px 8px; font-size: 0.75rem; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <h1>📍 API 1 — Geolocalización</h1>
+  <div class="controls">
+    <button onclick="getMyLocation()">📍 Mi Ubicación</button>
+    <input id="searchInput" type="text" placeholder="Lat, Lng (ej: 25.43, -100.99)">
+    <button onclick="searchCoords()">🔍 Buscar</button>
+    <button onclick="addRandomMarker()">📌 Marker Aleatorio</button>
+  </div>
+  <div id="map"></div>
+  <div id="info">Esperando acción del usuario...</div>
+
+  <script>
+    const map = L.map('map').setView([25.4382, -100.9737], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let currentMarker = null;
+
+    function placeMarker(lat, lng, label) {
+      if (currentMarker) map.removeLayer(currentMarker);
+      currentMarker = L.marker([lat, lng])
+        .addTo(map)
+        .bindPopup(`<b>${label}</b><br>Lat: ${lat.toFixed(5)}<br>Lng: ${lng.toFixed(5)}`)
+        .openPopup();
+      map.setView([lat, lng], 14);
+      document.getElementById('info').innerHTML =
+        `<span class="badge">LAT</span>${lat.toFixed(6)} &nbsp;<span class="badge">LNG</span>${lng.toFixed(6)}&nbsp;<span class="badge">ZOOM</span>14`;
+    }
+
+    function getMyLocation() {
+      if (!navigator.geolocation) {
+        document.getElementById('info').textContent = 'Geolocalización no soportada.';
+        return;
+      }
+      document.getElementById('info').textContent = 'Obteniendo ubicación...';
+      navigator.geolocation.getCurrentPosition(
+        pos => placeMarker(pos.coords.latitude, pos.coords.longitude, '📍 Tu Ubicación'),
+        () => {
+          // Fallback: Saltillo, Coahuila
+          placeMarker(25.4382, -100.9737, '📍 Saltillo (Demo)');
+        }
+      );
+    }
+
+    function searchCoords() {
+      const val = document.getElementById('searchInput').value.trim();
+      const parts = val.split(',').map(x => parseFloat(x.trim()));
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        placeMarker(parts[0], parts[1], '🔍 Búsqueda');
+      } else {
+        document.getElementById('info').textContent = 'Formato inválido. Usa: lat, lng';
+      }
+    }
+
+    function addRandomMarker() {
+      const lat = 25.4382 + (Math.random() - 0.5) * 0.2;
+      const lng = -100.9737 + (Math.random() - 0.5) * 0.2;
+      placeMarker(lat, lng, '📌 Marker Aleatorio');
+    }
+
+    map.on('click', e => placeMarker(e.latlng.lat, e.latlng.lng, '🖱️ Click en mapa'));
+
+    // Auto-show Saltillo on load
+    placeMarker(25.4382, -100.9737, '📍 Saltillo, Coahuila');
+  </script>
+</body>
+</html>
